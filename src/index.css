@@ -101,6 +101,23 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* Skip-to-content link — invisible until focused */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 1rem;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-acid-500);
+  color: var(--color-ink-950);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: top 0.2s ease;
+}
+.skip-link:focus-visible { top: 0.75rem; }
+
 /* Blinking status dot */
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 .status-dot { animation: blink 2.4s steps(1, end) infinite; }

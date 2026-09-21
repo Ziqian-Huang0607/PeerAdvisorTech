@@ -1,9 +1,36 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion, useInView } from 'framer-motion';
 import { site, siteStats } from '../data/site';
 import { scrollToId } from '../lib/smoothScroll';
 import Reveal from './Reveal';
 
 const pad = (n) => String(n).padStart(2, '0');
+
+// Counts up to the real value once scrolled into view. Reduced-motion users
+// get the final number immediately.
+function CountUp({ value }) {
+  const reduce = useReducedMotion();
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-40px' });
+  const [display, setDisplay] = useState(reduce ? value : 0);
+
+  useEffect(() => {
+    if (reduce || !inView) return;
+    const duration = 900;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(eased * value));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [inView, reduce, value]);
+
+  return <span ref={ref}>{pad(display)}</span>;
+}
 
 export default function LandingPage({ onViewWork }) {
   const reduce = useReducedMotion();
@@ -66,7 +93,7 @@ export default function LandingPage({ onViewWork }) {
           <div className="grid grid-cols-2 md:grid-cols-4 border-y border-ink-800 divide-x divide-ink-800">
             {siteStats.map((s) => (
               <div key={s.label} className="px-5 py-6 md:py-7">
-                <div className="font-display text-4xl md:text-5xl font-medium text-ink-50 tnum">{pad(s.value)}</div>
+                <div className="font-display text-4xl md:text-5xl font-medium text-ink-50 tnum"><CountUp value={s.value} /></div>
                 <div className="kicker text-ink-400 mt-2">{s.label}</div>
               </div>
             ))}

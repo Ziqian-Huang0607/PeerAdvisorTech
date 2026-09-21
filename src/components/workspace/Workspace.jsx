@@ -38,6 +38,7 @@ export default function Workspace() {
   const [assignments, setAssignments] = useState([]);
   const [forum, setForum] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -56,14 +57,33 @@ export default function Workspace() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const [tr, a, f] = await Promise.all([listTracks(), listAssignments(), listForum()]);
-      if (!active) return;
-      setTracks(tr);
-      setAssignments(a);
-      setForum(f);
-      setLoading(false);
+      try {
+        const [tr, a, f] = await Promise.all([listTracks(), listAssignments(), listForum()]);
+        if (!active) return;
+        setTracks(tr);
+        setAssignments(a);
+        setForum(f);
+        setLoadError(false);
+      } catch {
+        if (active) setLoadError(true);
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
     return () => { active = false; };
+  }, []);
+
+  const retryLoad = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
+    Promise.all([listTracks(), listAssignments(), listForum()])
+      .then(([tr, a, f]) => {
+        setTracks(tr);
+        setAssignments(a);
+        setForum(f);
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   const notify = useCallback((msg, type = 'ok') => {
@@ -134,6 +154,7 @@ export default function Workspace() {
               <button
                 key={t}
                 onClick={() => go(t)}
+                aria-current={tab === t ? 'page' : undefined}
                 className={`kicker shrink-0 py-3 -mb-px border-b-2 transition-colors ${
                   tab === t ? 'text-ink-50 border-acid-500' : 'text-ink-500 border-transparent hover:text-ink-200'
                 }`}
@@ -151,6 +172,17 @@ export default function Workspace() {
           {loading ? (
             <div className="space-y-3 animate-pulse">
               {[1, 2, 3].map((i) => <div key={i} className="h-14 border border-ink-800 bg-ink-900/30" />)}
+            </div>
+          ) : loadError ? (
+            <div className="border border-ink-800 px-6 py-12 text-center">
+              <div className="kicker text-ink-500 mb-3">Connection problem</div>
+              <p className="text-ink-300 mb-6">The workspace couldn’t load. Check your connection and try again.</p>
+              <button
+                onClick={retryLoad}
+                className="kicker text-ink-950 bg-acid-500 px-5 py-2.5 hover:bg-acid-400 transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : (
             Section && <Section ctx={ctx} />
@@ -175,6 +207,8 @@ export default function Workspace() {
       {toast && (
         <motion.div
           key={toast.msg}
+          role="status"
+          aria-live="polite"
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-ink-900 border border-ink-800 px-4 py-3 max-w-xs"
         >
