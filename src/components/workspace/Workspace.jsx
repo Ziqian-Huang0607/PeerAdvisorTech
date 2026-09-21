@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../lib/authContext';
-import { vidFor, listTracks, listAssignments, listForum, createAssignment } from '../../lib/db';
+import { vidFor, listTracks, listAssignments, listForum, createAssignment, listTasks, listProfiles } from '../../lib/db';
 import { initials } from './util';
 import Contributions from './Contributions';
 import Studio from './Studio';
@@ -11,12 +11,14 @@ import './studio.css';
 import MyTimeline from './MyTimeline';
 import Groups from './Groups';
 import Forum from './Forum';
+import Tasks from './Tasks';
 import WorkOnItModal from './WorkOnItModal';
+import ThemeToggle from '../ThemeToggle';
 
-const TABS = ['Studio', 'Timeline', 'Groups & Tasks', 'Contributions', 'Forum'];
+const TABS = ['Studio', 'Timeline', 'Groups & Tasks', 'Tasks & plans', 'Contributions', 'Forum'];
 
 export default function Workspace() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, oauth } = useAuth();
   const [tab, setTab] = useState('Studio');
   const [tracks, setTracks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -24,19 +26,30 @@ export default function Workspace() {
   const [projectError, setProjectError] = useState('');
   const [projectsLoading, setProjectsLoading] = useState(true);
   const reloadProjects = useCallback(async () => {
+    if (!oauth) { setProjects([]); setProjectInfo(null); setProjectsLoading(false); return; }
     const [info, rows] = await Promise.all([api.projectService('/me'), api.projectService('/projects')]);
     setProjectInfo(info); setProjects(rows); setProjectError('');
-  }, []);
+  }, [oauth]);
+  // The Launchpad-backed projects flow only exists when Launchpad SSO is on.
+  // With local auth there is nothing to call — skip it instead of erroring.
   useEffect(() => {
     let active = true;
+    if (!oauth) {
+      // Local auth: the Launchpad projects flow doesn't exist — nothing to load.
+      queueMicrotask(() => { if (active) setProjectsLoading(false); });
+      return () => { active = false; };
+    }
     Promise.all([api.projectService('/me'), api.projectService('/projects')])
       .then(([info, rows]) => { if (active) { setProjectInfo(info); setProjects(rows); } })
       .catch(e => { if (active) setProjectError(e.message); })
       .finally(() => { if (active) setProjectsLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [oauth]);
   const [assignments, setAssignments] = useState([]);
   const [forum, setForum] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [specFilter, setSpecFilter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [toast, setToast] = useState(null);
@@ -46,10 +59,12 @@ export default function Workspace() {
   const [modal, setModal] = useState(null);
 
   const reload = useCallback(async () => {
-    const [tr, a, f] = await Promise.all([listTracks(), listAssignments(), listForum()]);
+    const [tr, a, f, tk, pf] = await Promise.all([listTracks(), listAssignments(), listForum(), listTasks(), listProfiles()]);
     setTracks(tr);
     setAssignments(a);
     setForum(f);
+    setTasks(tk);
+    setProfiles(pf);
     setLoading(false);
   }, []);
 
@@ -58,11 +73,13 @@ export default function Workspace() {
     let active = true;
     (async () => {
       try {
-        const [tr, a, f] = await Promise.all([listTracks(), listAssignments(), listForum()]);
+        const [tr, a, f, tk, pf] = await Promise.all([listTracks(), listAssignments(), listForum(), listTasks(), listProfiles()]);
         if (!active) return;
         setTracks(tr);
         setAssignments(a);
         setForum(f);
+        setTasks(tk);
+        setProfiles(pf);
         setLoadError(false);
       } catch {
         if (active) setLoadError(true);
@@ -76,11 +93,13 @@ export default function Workspace() {
   const retryLoad = useCallback(() => {
     setLoading(true);
     setLoadError(false);
-    Promise.all([listTracks(), listAssignments(), listForum()])
-      .then(([tr, a, f]) => {
+    Promise.all([listTracks(), listAssignments(), listForum(), listTasks(), listProfiles()])
+      .then(([tr, a, f, tk, pf]) => {
         setTracks(tr);
         setAssignments(a);
         setForum(f);
+        setTasks(tk);
+        setProfiles(pf);
       })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
@@ -115,14 +134,15 @@ export default function Workspace() {
   }, [modal, reload, notify]);
 
   const ctx = {
-    user, name, role, vid, projects, projectInfo, projectError, projectsLoading, reloadProjects,
+    user, name, role, vid, oauth, projects, projectInfo, projectError, projectsLoading, reloadProjects,
     tracks, assignments, forum, myAssignments,
+    tasks, profiles, specFilter, setSpecFilter,
     loading, reload, notify, go, tab,
     openWorkOn,
     setForum,
   };
 
-  const Section = { Studio, Contributions, Timeline: MyTimeline, 'Groups & Tasks': Groups, Forum }[tab];
+  const Section = { Studio, Contributions, Timeline: MyTimeline, 'Groups & Tasks': Groups, 'Tasks & plans': Tasks, Forum }[tab];
 
   return (
     <div className="student-workspace min-h-screen">
@@ -139,9 +159,10 @@ export default function Workspace() {
               <div className="text-[13px] text-ink-100">{name}</div>
               <div className="kicker text-ink-700">{vid}{role === 'Admin' ? ' · Admin' : ''}</div>
             </div>
+            <ThemeToggle className="ml-1 h-8 w-8" />
             <button
               onClick={signOut}
-              className="ml-2 kicker text-ink-500 hover:text-ink-200 transition-colors border border-ink-800 hover:border-ink-600 px-2.5 py-1"
+              className="ml-1 kicker text-ink-500 hover:text-ink-200 transition-colors border border-ink-800 hover:border-ink-600 px-2.5 py-1"
             >
               Exit
             </button>
@@ -159,7 +180,7 @@ export default function Workspace() {
                   tab === t ? 'text-ink-50 border-acid-500' : 'text-ink-500 border-transparent hover:text-ink-200'
                 }`}
               >
-                {{ Studio: 'Home base', Timeline: 'My builds', 'Groups & Tasks': 'Explore projects', Contributions: 'Contributions', Forum: 'Common room' }[t]}
+                {{ Studio: 'Home base', Timeline: 'My builds', 'Groups & Tasks': 'Explore projects', 'Tasks & plans': 'Tasks & plans', Contributions: 'Contributions', Forum: 'Common room' }[t]}
               </button>
             ))}
           </div>
@@ -179,7 +200,7 @@ export default function Workspace() {
               <p className="text-ink-300 mb-6">The workspace couldn’t load. Check your connection and try again.</p>
               <button
                 onClick={retryLoad}
-                className="kicker text-ink-950 bg-acid-500 px-5 py-2.5 hover:bg-acid-400 transition-colors"
+                className="kicker text-on-acid bg-acid-500 px-5 py-2.5 hover:bg-acid-400 transition-colors"
               >
                 Retry
               </button>
@@ -210,7 +231,7 @@ export default function Workspace() {
           role="status"
           aria-live="polite"
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-ink-900 border border-ink-800 px-4 py-3 max-w-xs"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 glass-panel rounded-m px-4 py-3 max-w-xs"
         >
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: toast.type === 'err' ? '#fb7185' : '#c8f135' }} />
           <span className="text-sm text-ink-100 leading-snug">{toast.msg}</span>

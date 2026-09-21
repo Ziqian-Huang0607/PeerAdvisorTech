@@ -7,6 +7,7 @@ import LandingPage from './components/LandingPage';
 import WorkIndex from './components/WorkIndex';
 import TeamStrip from './components/TeamStrip';
 import Contact from './components/Contact';
+import ThemeToggle from './components/ThemeToggle';
 import { projects } from './data/projects';
 import { people } from './data/people';
 import { site } from './data/site';
@@ -118,12 +119,18 @@ function Nav() {
   const isActive = (item) => item.route && location.pathname.startsWith(item.route);
 
   return (
-    <header
-      className={`fixed top-0 inset-x-0 z-50 transition-colors duration-500 ${
-        scrolled ? 'bg-ink-950/85 backdrop-blur-md border-b border-ink-800' : 'border-b border-transparent'
-      }`}
-    >
-      <nav className="mx-auto max-w-[1200px] px-6 h-[72px] flex items-center justify-between" aria-label="Main">
+    <header className="fixed top-3 md:top-4 inset-x-3 md:inset-x-6 z-50">
+      {/* Floating frosted capsule — Apple-style nav that lifts off the page */}
+      <div
+        className={`mx-auto max-w-[1200px] transition-all duration-500 ${
+          open ? 'rounded-[28px]' : 'rounded-full'
+        } ${
+          scrolled || open
+            ? 'glass-nav border border-ink-800 shadow-lift'
+            : 'glass-nav border border-ink-800/60'
+        }`}
+      >
+        <nav className="px-5 md:px-7 h-[60px] flex items-center justify-between" aria-label="Main">
         <button onClick={home} className="flex items-center gap-2 font-mono text-sm font-semibold tracking-tight text-ink-50">
           <span className="inline-block w-2 h-2 bg-acid-500" />
           {site.shortName}
@@ -143,22 +150,26 @@ function Nav() {
               {item.label}
             </button>
           ))}
-          <button onClick={() => navigate(user ? '/workspace' : '/access')} className="kicker bg-acid-500 text-ink-950 px-5 py-2.5 hover:bg-acid-400 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-acid-500">
+          <ThemeToggle />
+          <button onClick={() => navigate(user ? '/workspace' : '/access')} className="kicker rounded-full btn-acid px-6 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-acid-500">
             {user ? 'Workspace' : 'Sign in'}
           </button>
         </div>
 
-        <button
-          className="md:hidden text-ink-100"
-          onClick={() => setOpen(!open)}
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          aria-expanded={open}
-        >
-          {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </nav>
+        <div className="md:hidden flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            className="text-ink-100"
+            onClick={() => setOpen(!open)}
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-expanded={open}
+          >
+            {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+        </nav>
 
-      <motion.div initial={false} animate={{ height: open ? 'auto' : 0 }} className="md:hidden overflow-hidden border-t border-ink-800 bg-ink-950">
+        <motion.div initial={false} animate={{ height: open ? 'auto' : 0 }} className="md:hidden overflow-hidden border-t border-transparent" style={open ? { borderColor: 'var(--color-ink-800)' } : undefined}>
         <div className="px-6 py-6 flex flex-col gap-1">
           {site.nav.map((item) => (
             <button
@@ -170,11 +181,12 @@ function Nav() {
               {item.label}
             </button>
           ))}
-          <button onClick={() => { setOpen(false); navigate(user ? '/workspace' : '/access'); }} className="self-start mt-4 kicker bg-acid-500 text-ink-950 px-5 py-3 hover:bg-acid-400 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-acid-500">
+          <button onClick={() => { setOpen(false); navigate(user ? '/workspace' : '/access'); }} className="self-start mt-4 kicker rounded-full btn-acid px-6 py-3 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-acid-500">
             {user ? 'Workspace' : 'Sign in'}
           </button>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </header>
   );
 }
@@ -243,7 +255,7 @@ function BackToTop() {
     <button
       onClick={scrollToTop}
       aria-label="Back to top"
-      className={`fixed bottom-6 right-6 z-40 kicker text-ink-300 border border-ink-700 bg-ink-950/80 backdrop-blur-sm px-3 py-2 transition-all duration-300 hover:text-acid-500 hover:border-ink-600 ${
+      className={`fixed bottom-6 right-6 z-40 kicker rounded-full glass-soft px-4 py-2 text-ink-300 transition-all duration-300 hover:text-acid-500 ${
         show ? 'opacity-100' : 'opacity-0 pointer-events-none translate-y-2'
       }`}
     >
@@ -291,7 +303,7 @@ function NotFound() {
         <p className="text-ink-400 mb-8 max-w-md mx-auto">
           The page you’re looking for moved, retired, or never shipped.
         </p>
-        <button onClick={() => navigate('/')} className="kicker text-ink-950 bg-acid-500 px-6 py-3.5 hover:bg-acid-400 transition-colors">
+        <button onClick={() => navigate('/')} className="kicker rounded-full btn-acid px-7 py-3.5">
           ← Back to home
         </button>
       </div>
@@ -341,7 +353,7 @@ export default function App() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-ink-950 text-ink-200">
+    <div className="min-h-screen text-ink-200">
       <a href="#main" className="skip-link">
         Skip to content
       </a>

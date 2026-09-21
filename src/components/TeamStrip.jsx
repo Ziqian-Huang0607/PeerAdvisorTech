@@ -14,7 +14,7 @@ export default function TeamStrip() {
   const { teamStrip } = site;
 
   return (
-    <section id="team" className="relative mx-auto max-w-[1200px] px-6 py-24 md:py-32 scroll-mt-20">
+    <section id="team" className="relative mx-auto max-w-[1200px] px-6 py-28 md:py-40 scroll-mt-24">
       <Reveal className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-end mb-14">
         <div className="md:col-span-5">
           <div className="kicker text-ink-500 mb-4">[ 03 ] — {teamStrip.heading}</div>
